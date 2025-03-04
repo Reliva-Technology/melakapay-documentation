@@ -1,11 +1,11 @@
-# CukaiPetak Function Documentation
+# CarianPersendirian Function Documentation
 
 ## Overview
-The `CukaiPetak()` function is part of the `AccountCheckAPI` class and is responsible for handling requests related to "Cukai Petak" in the MelakaPay system. This function interfaces with external SOAP APIs to retrieve parcel tax information based on various search criteria.
+The `CarianPersendirian()` function is part of the `AccountCheckAPI` class and is responsible for handling requests related to "Carian Persendirian" (Private Search) in the MelakaPay system. This function interfaces with external SOAP APIs to retrieve land title information based on various search criteria.
 
 ## Function Signature
 ```php
-public function CukaiPetak()
+public function CarianPersendirian()
 ```
 
 ## Input Parameters
@@ -13,26 +13,50 @@ The function accepts input via HTTP request parameters:
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| account_no | Yes | The account number or title ID to search for |
 | agency_id | Yes | The ID of the agency to query |
-| acc_type | Yes | The type of search to perform (acc_number, id_hakmilik, id_hakmilik_strata, id_lot_strata) |
-| seksyen | No | Section information (optional) |
+| account_no | Yes* | The account number or title ID to search for (*required for acc_number/id_hakmilik type) |
+| acc_type | No | The type of search to perform (defaults to 'acc_number') |
+| idHakmilik | No | Alternative to account_no for some search types |
+
+### Search Types (acc_type)
+The function supports several search types:
+
+1. **acc_number/id_hakmilik** - Search by title ID
+2. **id_hakmilik_landed** - Search by title number with land details
+3. **id_hakmilik_strata** - Search by title number with strata details
+4. **id_lot_landed** - Search by lot number with land details
+5. **id_lot_strata** - Search by lot number with strata details
 
 ### Additional Parameters Based on Search Type
-Depending on the `acc_type` value, additional parameters may be required:
 
-#### For id_hakmilik_strata
-- id_hakmilik
+#### For id_hakmilik_landed
+- idHakmilik (title ID)
 - daerah (district)
 - mukim (subdistrict)
+- seksyen (section, optional)
+- jenisHakmilik (title type)
+
+#### For id_hakmilik_strata
+- idHakmilik (title ID)
+- daerah (district)
+- mukim (subdistrict)
+- seksyen (section, optional)
 - jenisHakmilik (title type)
 - noBangunan (building number)
 - noTingkat (floor number)
 - noPetak (parcel number)
 
+#### For id_lot_landed
+- daerah (district)
+- mukim (subdistrict)
+- seksyen (section, optional)
+- jenisLot (lot type)
+- noLot (lot number)
+
 #### For id_lot_strata
 - daerah (district)
 - mukim (subdistrict)
+- seksyen (section, optional)
 - jenisLot (lot type)
 - noLot (lot number)
 - noBangunan (building number)
@@ -54,10 +78,12 @@ Depending on the `acc_type` value, additional parameters may be required:
    - Constructs the SOAP API endpoint URL
 
 4. **SOAP API Call**
-   - Based on the search type (`acc_type`), calls one of three SOAP methods:
-     - `checkAccountIdStrata`
-     - `checkAccountStrataByNoHakmilik`
-     - `checkAccountStrataByNoLot`
+   - Based on the search type (`acc_type`), calls one of five SOAP methods:
+     - `carianHakmilik`
+     - `carianHakmilikByNoHakmilik`
+     - `carianHakmilikByNoHakmilik` (for strata)
+     - `carianHakmilikByNoLot`
+     - `carianHakmilikStrataByNoLot`
    - Handles exceptions and logs errors
 
 5. **API Request Logging**
@@ -65,12 +91,11 @@ Depending on the `acc_type` value, additional parameters may be required:
 
 6. **Response Processing**
    - Processes the API response
-   - Determines payment status
    - Maps branch codes to merchant codes and branch names
    - Formats the response data
 
 7. **Response Generation**
-   - Returns a formatted response with payment details and bill information
+   - Returns a formatted response with payment details and search information
    - Returns appropriate error messages if no data is found or if there's an API error
 
 ## Response Structure
@@ -83,24 +108,18 @@ On successful API call, the function returns a JSON response with the following 
     "return": {
       // Original API response data
     },
-    "api": {
-      "kod_cawangan": "XX",
-      "cawangan": "Branch Name",
-      "merchant_code": "merchant-code"
-    },
     "details": {
-      // Formatted bill details
+      // Formatted search details
     },
     "payment": {
-      "payment": 0/1,
-      "amount": "XXX.XX",
+      "payment": 1,
+      "amount": "30.00",
       "merchant_code": "merchant-code",
       "account_no": "XXXXX",
-      "holder_name": "Owner Name",
-      "ic_no": "-"
+      "holder_name": "Owner Name"
     }
   },
-  "message": "Cukai Petak from [Agency Name] retrieved successfully"
+  "message": "Carian Persendirian from [Agency Name] retrieved successfully"
 }
 ```
 
@@ -129,6 +148,10 @@ The function maps branch codes to merchant codes and branch names:
 - Handles specific Java NullPointerException errors
 - Returns user-friendly error messages for API failures
 
+## Payment Details
+- The service has a fixed fee of RM 30.00
+- Payment is always required (payment flag is set to 1)
+
 ## Dependencies
 - Laravel Request
 - DB facade
@@ -141,5 +164,5 @@ The function maps branch codes to merchant codes and branch names:
 - The function uses SOAP 1.1 for API communication
 - API timeout is set to 15 seconds
 - All API requests are logged in the `ApiLog` table
-- Payment status is determined by checking if `statusBayaran` is 'TELAH BAYAR' or if `jumlahKeseluruhan` is 0
-- For error support, users are directed to contact 06-3333333 5016/5017/5052 or email ptg@melaka.gov.my
+- The function contains duplicate code for checking if the agency is enabled (can be refactored)
+- Error messages direct users to try again later when API calls fail
